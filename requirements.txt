@@ -1,0 +1,8 @@
+fastapi
+uvicorn[standard]
+httpx
+firebase-admin
+pydantic
+pydantic-settings
+python-dotenv
+python-multipart

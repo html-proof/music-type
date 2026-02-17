@@ -1,0 +1,44 @@
+{
+  "rules": {
+    "users": {
+      "$uid": {
+        ".read": "$uid === auth.uid",
+        ".write": "$uid === auth.uid",
+
+        "profile": {
+          ".validate": "newData.hasChildren(['name', 'email'])"
+        },
+
+        "preferences": {
+          ".validate": "newData.hasChild('language') || newData.hasChild('artists')"
+        },
+
+        "activity": {
+          "history": {
+            "$songId": {
+              ".validate": "newData.hasChild('playedAt')"
+            }
+          },
+          "skipped": {
+            "$songId": {
+              ".validate": "newData.hasChild('skippedAt')"
+            }
+          },
+          "searches": {
+            "$searchId": {
+              ".validate": "newData.hasChild('query') && newData.hasChild('timestamp')"
+            }
+          },
+          "currentPlaying": {
+            ".validate": "newData.hasChild('song_id')"
+          }
+        },
+
+        "recommendationsCache": {
+          ".read": "$uid === auth.uid",
+          ".write": "$uid === auth.uid"
+        }
+      }
+    }
+  }
+}
