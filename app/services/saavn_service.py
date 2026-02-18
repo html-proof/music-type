@@ -118,11 +118,16 @@ async def enrich_songs(songs: List[Dict]) -> List[Dict]:
     tasks = []
     indices_to_enrich = []
 
-    for i, song in enumerate(songs):
-        download_url = song.get("downloadUrl")
+    for i, item in enumerate(songs):
+        # Only enrich items that look like songs or are confirmed as songs
+        item_type = item.get("type", "song")
+        if item_type != "song":
+            continue
+
+        download_url = item.get("downloadUrl")
         # If downloadUrl is missing, empty, or not a list, it needs enrichment
         if not download_url or not isinstance(download_url, list) or len(download_url) == 0:
-            song_id = song.get("id")
+            song_id = item.get("id")
             if song_id:
                 tasks.append(get_song_by_id(song_id))
                 indices_to_enrich.append(i)
@@ -130,7 +135,7 @@ async def enrich_songs(songs: List[Dict]) -> List[Dict]:
     if not tasks:
         return songs
 
-    logger.info(f"Enriching {len(tasks)} songs missing playback data...")
+    logger.info(f"Enriching {len(tasks)} songs... (Total items: {len(songs)})")
     
     # Fetch all details in parallel
     enriched_results = await asyncio.gather(*tasks)
@@ -147,13 +152,19 @@ async def enrich_songs(songs: List[Dict]) -> List[Dict]:
 
             if full_song:
                 original_index = indices_to_enrich[i]
+                orig_name = songs[original_index].get("name", songs[original_index].get("title", "Unknown"))
+                logger.info(f"Successfully enriched: {orig_name}")
+                
                 # Update original song with missing fields
                 songs[original_index].update({
                     "downloadUrl": full_song.get("downloadUrl", []),
                     "image": full_song.get("image", []),
                     "duration": full_song.get("duration"),
                     "hasLyrics": full_song.get("hasLyrics"),
-                    # Add any other critical playing fields here
                 })
+            else:
+                logger.warning(f"Enrichment result empty for task {i}")
+        else:
+            logger.warning(f"Enrichment task {i} failed or returned success:False")
 
     return songs
