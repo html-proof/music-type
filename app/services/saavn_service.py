@@ -15,13 +15,15 @@ async def _get(endpoint: str, params: Optional[dict] = None) -> Optional[dict]:
     try:
         async with httpx.AsyncClient(timeout=15.0) as client:
             response = await client.get(url, params=params)
+            if response.status_code != 200:
+                logger.error(f"Upstream error from Saavn API: {response.status_code} for {url}. Result: {response.text[:200]}")
             response.raise_for_status()
             return response.json()
     except httpx.TimeoutException:
         logger.error(f"Timeout calling Saavn API: {url}")
         return None
     except httpx.HTTPStatusError as e:
-        logger.error(f"HTTP error from Saavn API: {e.response.status_code} {url}")
+        # Already logged status code above
         return None
     except Exception as e:
         logger.error(f"Saavn API error: {e}")
@@ -125,7 +127,8 @@ async def enrich_songs(songs: List[Dict]) -> List[Dict]:
             continue
 
         download_url = item.get("downloadUrl")
-        # If downloadUrl is missing, empty, or not a list, it needs enrichment
+        # If downloadUrl is missing, or empty list, it needs enrichment
+        # BUT if it already has a raw 'url' that looks like a stream, we might skip
         if not download_url or not isinstance(download_url, list) or len(download_url) == 0:
             song_id = item.get("id")
             if song_id:
@@ -137,12 +140,15 @@ async def enrich_songs(songs: List[Dict]) -> List[Dict]:
 
     logger.info(f"Enriching {len(tasks)} songs... (Total items: {len(songs)})")
     
-    # Fetch all details in parallel
-    enriched_results = await asyncio.gather(*tasks)
+    # Fetch all details in parallel, return_exceptions=True to keep moving on individual failures
+    enriched_results = await asyncio.gather(*tasks, return_exceptions=True)
 
     for i, result in enumerate(enriched_results):
+        if isinstance(result, Exception):
+            logger.warning(f"Enrichment task {i} raised exception: {result}")
+            continue
+
         if result and result.get("success"):
-            # Result data can be a list or a dict containing song data
             data = result.get("data")
             full_song = None
             if isinstance(data, list) and len(data) > 0:
@@ -163,7 +169,7 @@ async def enrich_songs(songs: List[Dict]) -> List[Dict]:
                     "hasLyrics": full_song.get("hasLyrics"),
                 })
             else:
-                logger.warning(f"Enrichment result empty for task {i}")
+                logger.warning(f"Enrichment result data empty for task {i}")
         else:
             logger.warning(f"Enrichment task {i} failed or returned success:False")
 
