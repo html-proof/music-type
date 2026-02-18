@@ -62,19 +62,19 @@ async def search_artists(query: str, page: int = 0, limit: int = 10) -> Optional
 
 async def get_song_by_id(song_id: str) -> Optional[dict]:
     """Get full song details by ID. Supports comma separated IDs."""
-    return await _get("/api/songs", params={"id": song_id})
+    return await _get("/api/songs", params={"ids": song_id})
 
 
 async def get_song_lyrics(song_id: str) -> Optional[dict]:
     """Get lyrics for a song."""
-    return await _get("/api/songs/lyrics", params={"id": song_id})
+    return await _get("/api/songs/lyrics", params={"ids": song_id})
 
 
 # ── Suggestions / Recommendations ──────────────────────────────────────────
 
 async def get_song_suggestions(song_id: str) -> Optional[dict]:
     """Get suggested songs based on a song."""
-    return await _get("/api/songs/suggestions", params={"id": song_id})
+    return await _get("/api/songs/suggestions", params={"ids": song_id})
 
 
 # ── Artist ──────────────────────────────────────────────────────────────────
