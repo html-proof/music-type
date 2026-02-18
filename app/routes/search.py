@@ -37,7 +37,7 @@ async def search(
     elif type == "artists":
         result = await saavn_service.search_artists(q, page=page, limit=limit)
     else:
-        result = await saavn_service.global_search(q)
+        result = await saavn_service.global_search(q, language=language)
         # Global search results are more complex, but we can filter the 'songs' inside them if language provided
         if result and result.get("success"):
             data = result.get("data", {})
