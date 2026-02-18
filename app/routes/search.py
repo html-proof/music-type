@@ -19,13 +19,19 @@ async def search(
     if type == "songs":
         result = await saavn_service.search_songs(q, page=page, limit=limit)
         # Apply language filter if provided and search results exist
-        if language and result and result.get("success"):
-            results = result.get("data", {}).get("results", [])
-            filtered = [
-                s for s in results 
-                if s.get("language", "").lower() == language.lower()
-            ]
-            result["data"]["results"] = filtered
+        if result and result.get("success"):
+            data = result.get("data", {})
+            results = data.get("results", [])
+            
+            if language:
+                results = [
+                    s for s in results 
+                    if s.get("language", "").lower() == language.lower()
+                ]
+            
+            # Enrich results with download URLs
+            data["results"] = await saavn_service.enrich_songs(results)
+            
     elif type == "albums":
         result = await saavn_service.search_albums(q, page=page, limit=limit)
     elif type == "artists":
@@ -33,18 +39,28 @@ async def search(
     else:
         result = await saavn_service.global_search(q)
         # Global search results are more complex, but we can filter the 'songs' inside them if language provided
-        if language and result and result.get("success"):
+        if result and result.get("success"):
             data = result.get("data", {})
             if "topQuery" in data and "results" in data["topQuery"]:
-                data["topQuery"]["results"] = [
-                    s for s in data["topQuery"]["results"]
-                    if s.get("type") != "song" or s.get("language", "").lower() == language.lower()
-                ]
+                # Filter
+                top_results = data["topQuery"]["results"]
+                if language:
+                    top_results = [
+                        s for s in top_results
+                        if s.get("type") != "song" or s.get("language", "").lower() == language.lower()
+                    ]
+                # Enrich only songs
+                data["topQuery"]["results"] = await saavn_service.enrich_songs(top_results)
+                
             if "songs" in data and "results" in data["songs"]:
-                data["songs"]["results"] = [
-                    s for s in data["songs"]["results"]
-                    if s.get("language", "").lower() == language.lower()
-                ]
+                song_results = data["songs"]["results"]
+                if language:
+                    song_results = [
+                        s for s in song_results
+                        if s.get("language", "").lower() == language.lower()
+                    ]
+                # Enrich
+                data["songs"]["results"] = await saavn_service.enrich_songs(song_results)
 
     if result:
         return result

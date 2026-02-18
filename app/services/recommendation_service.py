@@ -82,8 +82,11 @@ async def get_recommendations(
     if trending and trending.get("success"):
         results = trending.get("data", {}).get("results", [])
 
+    # ── Final Enrichment ────────────────────────────────────────────────
+    enriched_data = await saavn_service.enrich_songs(results[:limit])
+
     return {
-        "success": bool(results),
-        "data": results[:limit],
+        "success": bool(enriched_data),
+        "data": enriched_data,
         "source": "mixed" if uid else "trending",
     }
