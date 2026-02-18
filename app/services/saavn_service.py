@@ -61,20 +61,20 @@ async def search_artists(query: str, page: int = 0, limit: int = 10) -> Optional
 # ── Song Details ────────────────────────────────────────────────────────────
 
 async def get_song_by_id(song_id: str) -> Optional[dict]:
-    """Get full song details by ID."""
-    return await _get(f"/api/songs/{song_id}")
+    """Get full song details by ID. Supports comma separated IDs."""
+    return await _get("/api/songs", params={"id": song_id})
 
 
 async def get_song_lyrics(song_id: str) -> Optional[dict]:
     """Get lyrics for a song."""
-    return await _get(f"/api/songs/{song_id}/lyrics")
+    return await _get("/api/songs/lyrics", params={"id": song_id})
 
 
 # ── Suggestions / Recommendations ──────────────────────────────────────────
 
 async def get_song_suggestions(song_id: str) -> Optional[dict]:
     """Get suggested songs based on a song."""
-    return await _get(f"/api/songs/{song_id}/suggestions")
+    return await _get("/api/songs/suggestions", params={"id": song_id})
 
 
 # ── Artist ──────────────────────────────────────────────────────────────────
@@ -144,8 +144,13 @@ async def enrich_songs(songs: List[Dict]) -> List[Dict]:
     enriched_results = await asyncio.gather(*tasks, return_exceptions=True)
 
     for i, result in enumerate(enriched_results):
+        original_index = indices_to_enrich[i]
+        item = songs[original_index]
+        item_id = item.get("id", "Unknown")
+        item_name = item.get("name", item.get("title", "Unknown"))
+
         if isinstance(result, Exception):
-            logger.warning(f"Enrichment task {i} raised exception: {result}")
+            logger.warning(f"Enrichment task for {item_name} ({item_id}) raised exception: {result}")
             continue
 
         if result and result.get("success"):
@@ -157,9 +162,7 @@ async def enrich_songs(songs: List[Dict]) -> List[Dict]:
                 full_song = data
 
             if full_song:
-                original_index = indices_to_enrich[i]
-                orig_name = songs[original_index].get("name", songs[original_index].get("title", "Unknown"))
-                logger.info(f"Successfully enriched: {orig_name}")
+                logger.info(f"Successfully enriched: {item_name}")
                 
                 # Update original song with missing fields
                 songs[original_index].update({
@@ -169,8 +172,9 @@ async def enrich_songs(songs: List[Dict]) -> List[Dict]:
                     "hasLyrics": full_song.get("hasLyrics"),
                 })
             else:
-                logger.warning(f"Enrichment result data empty for task {i}")
+                logger.warning(f"Enrichment result data empty for {item_name} ({item_id})")
         else:
-            logger.warning(f"Enrichment task {i} failed or returned success:False")
+            msg = result.get("message") if result else "No response"
+            logger.warning(f"Enrichment failed for {item_name} ({item_id}). Status: {msg}")
 
     return songs
