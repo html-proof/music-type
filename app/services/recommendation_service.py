@@ -10,16 +10,28 @@ async def get_recommendations(
     uid: Optional[str] = None,
     limit: int = 20,
 ) -> dict:
-    """
-    Get song recommendations using this priority:
-
-    1. If song_id given → Saavn suggestions for that song
-    2. If user has preferences → songs by preferred artist + language
-    3. Fallback → trending / popular songs
-    """
     results = []
 
-    # ── Strategy 1: Song-based suggestions ──────────────────────────────
+    # ── Strategy 1: Recent History suggestions ──────────────────────────
+    if uid:
+        history = firebase_service.get_history(uid, limit=5)
+        if history:
+            # history is a dict of song_id: data. Sort by playedAt desc
+            sorted_history = sorted(
+                history.items(), 
+                key=lambda x: x[1].get("playedAt", 0), 
+                reverse=True
+            )
+            for song_id, data in sorted_history[:2]:
+                suggestions = await saavn_service.get_song_suggestions(song_id)
+                if suggestions and suggestions.get("success"):
+                    data = suggestions.get("data", [])
+                    if isinstance(data, list):
+                        results.extend(data[:5])
+                    elif isinstance(data, dict):
+                        results.extend(data.get("results", data.get("songs", []))[:5])
+
+    # ── Strategy 2: Song-based suggestions (if specific song_id given) ───
     if song_id:
         suggestions = await saavn_service.get_song_suggestions(song_id)
         if suggestions and suggestions.get("success"):
@@ -32,7 +44,7 @@ async def get_recommendations(
         if len(results) >= limit:
             return {"success": True, "data": results[:limit], "source": "song_suggestions"}
 
-    # ── Strategy 2: User preference-based ───────────────────────────────
+    # ── Strategy 3: User preference-based ───────────────────────────────
     if uid:
         prefs = firebase_service.get_preferences(uid)
         if prefs:
@@ -51,10 +63,10 @@ async def get_recommendations(
                                 continue
                         results.append(song)
 
-            if len(results) >= limit:
+            if results and len(results) >= limit:
                 return {"success": True, "data": results[:limit], "source": "preferences"}
 
-            # Search by language
+            # Search by language if we still need more
             if preferred_language and len(results) < limit:
                 lang_songs = await saavn_service.search_songs(
                     preferred_language, limit=limit - len(results)
@@ -65,7 +77,7 @@ async def get_recommendations(
             if results:
                 return {"success": True, "data": results[:limit], "source": "preferences"}
 
-    # ── Strategy 3: Trending fallback ───────────────────────────────────
+    # ── Strategy 4: Trending fallback ───────────────────────────────────
     trending = await saavn_service.search_songs("trending", limit=limit)
     if trending and trending.get("success"):
         results = trending.get("data", {}).get("results", [])
@@ -73,5 +85,5 @@ async def get_recommendations(
     return {
         "success": bool(results),
         "data": results[:limit],
-        "source": "trending" if results else "none",
+        "source": "mixed" if uid else "trending",
     }
