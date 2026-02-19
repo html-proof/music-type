@@ -32,9 +32,9 @@ async def _get(endpoint: str, params: Optional[dict] = None) -> Optional[dict]:
 
 # ── Search ──────────────────────────────────────────────────────────────────
 
-async def global_search(query: str, language: Optional[str] = None) -> Optional[dict]:
+async def global_search(query: str, language: Optional[str] = None, limit: int = 10) -> Optional[dict]:
     """Global search: songs, albums, artists, playlists."""
-    params = {"query": query}
+    params = {"query": query, "limit": limit}
     if language:
         params["language"] = language
     return await _get("/api/search", params=params)
