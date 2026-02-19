@@ -32,7 +32,7 @@ async def _get(endpoint: str, params: Optional[dict] = None) -> Optional[dict]:
 
 # ── Search ──────────────────────────────────────────────────────────────────
 
-async def global_search(query: str, language: Optional[str] = None, limit: int = 10) -> Optional[dict]:
+async def global_search(query: str, language: Optional[str] = None, limit: int = 20) -> Optional[dict]:
     """Global search: songs, albums, artists, playlists."""
     params = {"query": query, "limit": limit}
     if language:
@@ -40,21 +40,21 @@ async def global_search(query: str, language: Optional[str] = None, limit: int =
     return await _get("/api/search", params=params)
 
 
-async def search_songs(query: str, page: int = 0, limit: int = 10) -> Optional[dict]:
+async def search_songs(query: str, page: int = 0, limit: int = 20) -> Optional[dict]:
     """Search specifically for songs."""
     return await _get("/api/search/songs", params={
         "query": query, "page": page, "limit": limit
     })
 
 
-async def search_albums(query: str, page: int = 0, limit: int = 10) -> Optional[dict]:
+async def search_albums(query: str, page: int = 0, limit: int = 20) -> Optional[dict]:
     """Search specifically for albums."""
     return await _get("/api/search/albums", params={
         "query": query, "page": page, "limit": limit
     })
 
 
-async def search_artists(query: str, page: int = 0, limit: int = 10) -> Optional[dict]:
+async def search_artists(query: str, page: int = 0, limit: int = 20) -> Optional[dict]:
     """Search specifically for artists."""
     return await _get("/api/search/artists", params={
         "query": query, "page": page, "limit": limit
