@@ -48,7 +48,7 @@ async def startup():
 
 # ── Register Routes ─────────────────────────────────────────────────────────
 try:
-    from app.routes import auth, search, songs, recommendations, activity, preferences, metadata
+    from app.routes import auth, search, songs, recommendations, activity, preferences, metadata, podcasts
 
     app.include_router(auth.router,            prefix="/auth",       tags=["Auth"])
     app.include_router(search.router,                                tags=["Search"])
@@ -57,6 +57,7 @@ try:
     app.include_router(activity.router,         prefix="/user",      tags=["Activity"])
     app.include_router(preferences.router,      prefix="/user",      tags=["User"])
     app.include_router(metadata.router,         prefix="/metadata",  tags=["Metadata"])
+    app.include_router(podcasts.router,                                tags=["Podcasts"])
 
     logger.info("✅ All routes loaded")
 except Exception as e:

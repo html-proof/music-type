@@ -61,6 +61,16 @@ async def search_artists(query: str, page: int = 0, limit: int = 10) -> Optional
     })
 
 
+async def search_podcasts(query: str, page: int = 0, limit: int = 20) -> Optional[dict]:
+    """Search for podcasts."""
+    # The unofficial API might not have a dedicated podcast endpoint, 
+    # so we use song search with "podcast" as query or filter if global search has them.
+    # However, for now we search specifically for "podcast" and enrich them.
+    return await _get("/api/search/songs", params={
+        "query": f"{query} podcast", "page": page, "limit": limit
+    })
+
+
 # ── Song Details ────────────────────────────────────────────────────────────
 
 async def get_song_by_id(song_id: str) -> Optional[dict]:
