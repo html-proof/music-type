@@ -37,7 +37,80 @@ async def global_search(query: str, language: Optional[str] = None, limit: int =
     params = {"query": query, "limit": limit}
     if language:
         params["language"] = language
-    return await _get("/api/search", params=params)
+    
+    # Launch Global Search and dedicated Song Search in parallel
+    global_task = _get("/api/search", params=params)
+    songs_task = search_songs(query, page=0, limit=limit)
+    
+    results = await asyncio.gather(global_task, songs_task, return_exceptions=True)
+    
+    global_result = results[0]
+    songs_result = results[1]
+    
+    # Determine the base result from global search
+    final_result = None
+    if not isinstance(global_result, Exception) and global_result:
+        final_result = global_result
+    
+    # If global search failed essentially, we might still want to construct a response from song search,
+    # but strictly speaking global_search returns a specific structure with 'topQuery', 'albums', etc.
+    # If global failed, we might checking songs_result.
+    if not final_result and not isinstance(songs_result, Exception) and songs_result and songs_result.get("success"):
+        # Construct a partial global result from song result
+        final_result = {
+            "success": True,
+            "data": {
+                "songs": songs_result.get("data", {}),
+                "topQuery": {"results": []},
+                "albums": {"results": []},
+                "artists": {"results": []},
+                "playlists": {"results": []}
+            }
+        }
+
+    if final_result and final_result.get("success"):
+        data = final_result.get("data", {})
+        
+        # 1. Enrich Top Query
+        if "topQuery" in data and "results" in data["topQuery"]:
+            top_results = data["topQuery"]["results"]
+            if language:
+                top_results = [
+                    s for s in top_results
+                    if s.get("type") != "song" or s.get("language", "").lower() == language.lower()
+                ]
+            data["topQuery"]["results"] = await enrich_songs(top_results)
+
+        # 2. Merge/Use Dedicated Songs
+        # Extract dedicated songs
+        dedicated_songs = []
+        if not isinstance(songs_result, Exception) and songs_result and songs_result.get("success"):
+            d_data = songs_result.get("data", {})
+            if "results" in d_data:
+                dedicated_songs = d_data["results"]
+
+        # If we have dedicated songs, use them as the primary source for the 'songs' section
+        # because global search truncates this list severely.
+        if dedicated_songs:
+            if language:
+                dedicated_songs = [
+                    s for s in dedicated_songs
+                    if s.get("language", "").lower() == language.lower()
+                ]
+            # Verify enrichment for these songs
+            data["songs"] = {"results": await enrich_songs(dedicated_songs)}
+        
+        # Fallback: if dedicated search failed or returned nothing, use global songs (enriched)
+        elif "songs" in data and "results" in data["songs"]:
+            start_songs = data["songs"]["results"]
+            if language:
+                start_songs = [
+                    s for s in start_songs
+                    if s.get("language", "").lower() == language.lower()
+                ]
+            data["songs"]["results"] = await enrich_songs(start_songs)
+
+    return final_result
 
 
 async def search_songs(query: str, page: int = 0, limit: int = 20) -> Optional[dict]:
