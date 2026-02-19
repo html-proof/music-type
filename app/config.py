@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     firebase_storage_bucket: str = "sample-music-65323.firebasestorage.app"
 
     # Saavn API
-    saavn_api_base_url: str = "https://saavn.sumit.co"
+    saavn_api_base_url: str = "https://www.jiosaavn.com/api.php"
 
     # Server
     app_env: str = "development"
