@@ -177,13 +177,10 @@ async def enrich_songs(songs: List[Dict]) -> List[Dict]:
             if full_song:
                 logger.info(f"Successfully enriched: {item_name}")
                 
-                # Update original song with missing fields
-                songs[original_index].update({
-                    "downloadUrl": full_song.get("downloadUrl", []),
-                    "image": full_song.get("image", []),
-                    "duration": full_song.get("duration"),
-                    "hasLyrics": full_song.get("hasLyrics"),
-                })
+                # Update original song with ALL fields from full_song
+                # This ensures that fields like 'album' and 'artists' which might be strings in global search
+                # get replaced by their full object/map representations from the song details API.
+                songs[original_index].update(full_song)
             else:
                 logger.warning(f"Enrichment result data empty for {item_name} ({item_id})")
         else:
